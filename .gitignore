@@ -1,0 +1,18 @@
+# .gitignore
+node_modules/
+db_env/
+__pycache__/
+.env
+.DS_Store
+*.pyc
+.vscode/
+restaurants_with_attributes.json
+yelp_academic_dataset_business.json
+yelp_academic_dataset_review.json
+yelp_academic_dataset_user.json
+yelp_categories.txt
+Dataset_User_Agreement.pdf
+restaurants.json
+cleaned_restaurants.json
+Phanee.txt
+Final.py
