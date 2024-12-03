@@ -13,12 +13,10 @@ yelp_academic_dataset_user.json
 yelp_categories.txt
 Dataset_User_Agreement.pdf
 restaurants.json
-cleaned_restaurants.json
 Phanee.txt
 Final.py
 all.txt
 restaurants.py
 standardize_cities.py
-Upload.py
 filtering.py
 Cleaning.py
