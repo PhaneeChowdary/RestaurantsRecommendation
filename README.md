@@ -2,28 +2,6 @@
 
 A full-stack web application for restaurant recommendations with filtering and search capabilities.
 
-## Project Structure
-```
-restaurant-recommendation/
-├── backend/
-│   ├── app.py                 # Main Flask application
-│   ├── Upload.py              # Data upload script
-│   ├── Cleaning.py            # Data cleaning script
-│   ├── filtering.py           # Data filtering utilities
-│   ├── restaurants.py         # Restaurant data processing
-│   ├── standardize_cities.py  # City name standardization
-│   └── requirements.txt       # Python dependencies
-├── frontend/
-│   ├── public/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── utils/
-│   │   ├── App.js
-│   │   └── index.js
-│   └── package.json
-└── README.md
-```
-
 ## Prerequisites
 - Python 3.10 or higher
 - Node.js 14 or higher
