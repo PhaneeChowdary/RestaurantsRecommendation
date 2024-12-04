@@ -1,10 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, Edit2, Trash2, Star } from 'lucide-react';
-import { fetchRestaurants, deleteRestaurant } from '../utils/api';
+import AdvancedFilters from './AdvancedFilters';
+import LoadingSpinner from './LoadingSpinner';
 import RestaurantModal from './RestaurantModal';
 import ErrorToast from './ErrorToast';
-import LoadingSpinner from './LoadingSpinner';
-import AdvancedFilters from './AdvancedFilters';
+import { fetchRestaurants, deleteRestaurant } from '../utils/api';
+
+// Define initial filters state
+const initialFilters = {
+  city: '',
+  price_range_min: '',
+  alcohol: '',
+  smoking: '',
+  delivery: '',
+  wifi: '',
+  pets_allowed: '',
+  parking: null
+};
 
 const RestaurantApp = () => {
   // Basic state
@@ -15,37 +27,41 @@ const RestaurantApp = () => {
   const [totalPages, setTotalPages] = useState(0);
 
   // Filter states
-  const [city, setCity] = useState('');
-  const [priceRange, setPriceRange] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [sortBy, setSortBy] = useState('stars');
-  const [sortOrder, setSortOrder] = useState('-1');
-  
+  const [filters, setFilters] = useState(initialFilters);
+
   // Modal states
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
   const [modalMode, setModalMode] = useState('create');
-  
-  // Delete dialog states
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [restaurantToDelete, setRestaurantToDelete] = useState(null);
-
-  useEffect(() => {
-    loadRestaurants();
-  }, [city, priceRange, selectedCategory, sortBy, sortOrder, page]);
 
   const loadRestaurants = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await fetchRestaurants({
-        city,
-        price_range_min: priceRange,
-        categories: selectedCategory,
-        page,
-        per_page: 10,
-        sort: sortBy,
-        order: sortOrder
+      const queryParams = new URLSearchParams();
+      
+      // Add filter parameters
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value && value !== '' && value !== "don't include") {
+          if (key === 'parking' && value) {
+            queryParams.append(key, JSON.stringify(value));
+          } else {
+            queryParams.append(key, value);
+          }
+        }
       });
+      
+      // Add pagination parameters
+      queryParams.append('page', page.toString());
+      queryParams.append('per_page', '10');
+      
+      // Debug log
+      console.log('Request URL:', `http://localhost:5001/api/restaurants?${queryParams.toString()}`);
+
+      const data = await fetchRestaurants(Object.fromEntries(queryParams));
+      console.log('Response data:', data);
+      
       setRestaurants(data.restaurants);
       setTotalPages(data.total_pages);
     } catch (err) {
@@ -53,23 +69,20 @@ const RestaurantApp = () => {
     } finally {
       setLoading(false);
     }
-  }, [city, priceRange, selectedCategory, sortBy, sortOrder, page]);
+  }, [filters, page]);
 
   useEffect(() => {
     loadRestaurants();
-  }, [loadRestaurants]); 
+  }, [loadRestaurants]);
 
-  const handleAdvancedFilters = ({ category, sort }) => {
-    setSelectedCategory(category);
-    if (sort) {
-      if (sort.startsWith('-')) {
-        setSortBy(sort.substring(1));
-        setSortOrder('1');
-      } else {
-        setSortBy(sort);
-        setSortOrder('-1');
-      }
-    }
+  const handleFilterChange = useCallback((newFilters) => {
+    console.log('Applying new filters:', newFilters);
+    setFilters(prev => ({ ...prev, ...newFilters }));
+    setPage(1); // Reset to first page when filters change
+  }, []);
+
+  const handleClearFilters = () => {
+    setFilters(initialFilters);
     setPage(1);
   };
 
@@ -85,6 +98,11 @@ const RestaurantApp = () => {
     setModalOpen(true);
   };
 
+  const confirmDelete = (restaurant) => {
+    setRestaurantToDelete(restaurant);
+    setDeleteDialogOpen(true);
+  };
+
   const handleDelete = async () => {
     if (!restaurantToDelete) return;
 
@@ -96,11 +114,6 @@ const RestaurantApp = () => {
     } catch (err) {
       setError(err.message);
     }
-  };
-
-  const confirmDelete = (restaurant) => {
-    setRestaurantToDelete(restaurant);
-    setDeleteDialogOpen(true);
   };
 
   const renderStars = (rating) => {
@@ -123,21 +136,21 @@ const RestaurantApp = () => {
         <h1 className="text-3xl font-bold mb-4">Restaurant Directory</h1>
         
         {/* Search and Filter Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="flex items-center gap-2">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="relative">
             <input
               type="text"
               placeholder="Search by city..."
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
+              value={filters.city}
+              onChange={(e) => handleFilterChange({ city: e.target.value })}
               className="w-full px-4 py-2 border rounded-lg"
             />
-            <Search className="text-gray-400" />
+            <Search className="absolute right-3 top-2.5 text-gray-400" />
           </div>
           
           <select
-            value={priceRange}
-            onChange={(e) => setPriceRange(e.target.value)}
+            value={filters.price_range_min}
+            onChange={(e) => handleFilterChange({ price_range_min: e.target.value })}
             className="px-4 py-2 border rounded-lg"
           >
             <option value="">All Price Ranges</option>
@@ -146,6 +159,13 @@ const RestaurantApp = () => {
             <option value="3">$$$ (Expensive)</option>
             <option value="4">$$$$ (Very Expensive)</option>
           </select>
+
+          <button
+            onClick={handleClearFilters}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+          >
+            Clear Filters
+          </button>
 
           <button
             onClick={handleAddNew}
@@ -157,7 +177,10 @@ const RestaurantApp = () => {
         </div>
 
         {/* Advanced Filters */}
-        <AdvancedFilters onFilterChange={handleAdvancedFilters} />
+        <AdvancedFilters 
+          onFilterChange={handleFilterChange}
+          currentFilters={filters}
+        />
 
         {/* Restaurant Cards */}
         {loading ? (
@@ -208,6 +231,16 @@ const RestaurantApp = () => {
                     {restaurant.attributes?.WiFi && (
                       <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
                         WiFi: {restaurant.attributes.WiFi}
+                      </span>
+                    )}
+                    {restaurant.attributes?.Alcohol && (
+                      <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                        {restaurant.attributes.Alcohol}
+                      </span>
+                    )}
+                    {restaurant.attributes?.RestaurantsDelivery && (
+                      <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">
+                        Delivery Available
                       </span>
                     )}
                   </div>

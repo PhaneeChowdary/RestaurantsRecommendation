@@ -32,52 +32,101 @@ except Exception as e:
     print(f"Error connecting to MongoDB: {str(e)}")
 
 
+# In app.py - Updated get_restaurants route
 @app.route("/api/restaurants", methods=["GET"])
 def get_restaurants():
     try:
-        # Get filter parameters
+        # Get all filter parameters
         city = request.args.get("city")
         price_range_min = request.args.get("price_range_min")
-        categories = request.args.get("categories")
+        alcohol = request.args.get("alcohol")
+        delivery = request.args.get("delivery")
+        wifi = request.args.get("wifi")
+        dogs_allowed = request.args.get("pets_allowed")
         parking = request.args.get("parking")
-        sort = request.args.get("sort", "stars")
-        order = int(request.args.get("order", "-1"))
+
+        # Get pagination parameters
         page = int(request.args.get("page", 1))
         per_page = int(request.args.get("per_page", 10))
-        
-        # Calculate skip value for pagination
         skip = (page - 1) * per_page
+
+        # Debug prints
+        print("Received parameters:", dict(request.args))
+        print("Page:", page)
+        print("Skip:", skip)
+        print("Per page:", per_page)
 
         # Build query
         query = {}
 
-        # Add city filter if provided
+        # City filter (case-insensitive)
         if city and city != "don't include":
-            query["city"] = city  # Exact match on city
+            query["city"] = {"$regex": f"^{city}$", "$options": "i"}
 
-        # Add price range filter
+        # Price range filter
         if price_range_min and price_range_min != "don't include":
             query["attributes.RestaurantsPriceRange2"] = str(price_range_min)
-        
-        if categories:
-            query["categories"] = {"$regex": categories, "$options": "i"}
 
-        # Handle parking
+        # WiFi filter (case-insensitive)
+        if wifi and wifi != "don't include":
+            query["attributes.WiFi"] = {"$regex": f"^{wifi}$", "$options": "i"}
+
+        # Alcohol filter (case-insensitive)
+        if alcohol and alcohol != "don't include":
+            query["attributes.Alcohol"] = {"$regex": f"^{alcohol}$", "$options": "i"}
+
+        # Delivery filter (boolean)
+        if delivery == "true":
+            query["$or"] = [
+                {"attributes.RestaurantsDelivery": True},
+                {"attributes.RestaurantsDelivery": "True"},
+                {"attributes.RestaurantsDelivery": "true"}
+            ]
+        elif delivery == "false":
+            query["$or"] = [
+                {"attributes.RestaurantsDelivery": False},
+                {"attributes.RestaurantsDelivery": "False"},
+                {"attributes.RestaurantsDelivery": "false"}
+            ]
+
+        # Dogs/Pets allowed filter (boolean)
+        if dogs_allowed == "true":
+            query["$or"] = [
+                {"attributes.DogsAllowed": True},
+                {"attributes.DogsAllowed": "True"},
+                {"attributes.DogsAllowed": "true"}
+            ]
+        elif dogs_allowed == "false":
+            query["$or"] = [
+                {"attributes.DogsAllowed": False},
+                {"attributes.DogsAllowed": "False"},
+                {"attributes.DogsAllowed": "false"}
+            ]
+
+        # Parking filter
         if parking and parking != "don't include":
             try:
                 parking_dict = json.loads(parking)
                 for key, value in parking_dict.items():
-                    query["attributes.BusinessParking"] = {
-                        "$regex": f"'{key}':\\s*{value}"
-                    }
+                    if str(value).lower() == "true":
+                        query["attributes.BusinessParking"] = {
+                            "$regex": f"'{key}':\\s*(True|true)", 
+                            "$options": "i"
+                        }
+                    elif str(value).lower() == "false":
+                        query["attributes.BusinessParking"] = {
+                            "$regex": f"'{key}':\\s*(False|false)", 
+                            "$options": "i"
+                        }
             except json.JSONDecodeError as e:
                 print(f"Error parsing parking JSON: {parking}, Error: {str(e)}")
 
-        # Debug: Print the final query
-        print("Final query:", query)
+        # Debug print final query
+        print("Final MongoDB Query:", json.dumps(query, indent=2))
 
-        # Get total count
+        # Get total count before pagination
         total_count = collection.count_documents(query)
+        print(f"Total matching documents: {total_count}")
 
         # Define projection
         projection = {
@@ -92,19 +141,16 @@ def get_restaurants():
             "address": 1
         }
 
-        # Execute query with projection, sorting, and pagination
-        restaurants = (
-            collection.find(query, projection)
-            .sort([(sort, order), ("review_count", -1)])
-            .skip(skip)
-            .limit(per_page)
-        )
+        # Execute query with pagination
+        restaurants = list(collection.find(query, projection)
+                         .sort([("stars", -1), ("review_count", -1)])
+                         .skip(skip)
+                         .limit(per_page))
 
-        # Convert to list and handle serialization
-        restaurants_list = json.loads(json_util.dumps(list(restaurants)))
+        print(f"Found {len(restaurants)} restaurants for page {page}")
 
         response = {
-            "restaurants": restaurants_list,
+            "restaurants": json.loads(json_util.dumps(restaurants)),
             "total_count": total_count,
             "page": page,
             "per_page": per_page,
@@ -117,6 +163,37 @@ def get_restaurants():
     except Exception as e:
         print(f"Error processing request: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+
+
+@app.route("/api/filters", methods=["GET"])
+def get_filter_options():
+    """Endpoint to get all possible filter values"""
+    try:
+        # Get distinct values from the database for various attributes
+        distinct_alcohol = collection.distinct("attributes.Alcohol")
+        distinct_smoking = collection.distinct("attributes.Smoking")
+        distinct_wifi = collection.distinct("attributes.WiFi")
+
+        filter_options = {
+            "price_range": ["1", "2", "3", "4"],
+            "parking": {
+                "garage": ["true", "false"],
+                "street": ["true", "false"],
+                "validated": ["true", "false"],
+                "lot": ["true", "false"],
+                "valet": ["true", "false"]
+            },
+            "pets_allowed": ["true", "false"],
+            "delivery": ["true", "false"],
+            "alcohol": sorted([opt for opt in distinct_alcohol if opt]),
+            "smoking": sorted([opt for opt in distinct_smoking if opt]),
+            "wifi": sorted([opt for opt in distinct_wifi if opt])
+        }
+        return jsonify(filter_options)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 
 @app.route("/api/restaurants", methods=["POST"])
@@ -151,6 +228,7 @@ def create_restaurant():
     except Exception as e:
         print(f"Error creating restaurant: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/restaurants/<id>", methods=["PUT"])
 def update_restaurant(id):
@@ -189,6 +267,7 @@ def update_restaurant(id):
         print(f"Error updating restaurant: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+
 @app.route("/api/restaurants/<id>", methods=["DELETE"])
 def delete_restaurant(id):
     try:
@@ -200,26 +279,6 @@ def delete_restaurant(id):
         print(f"Error deleting restaurant: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-    
-@app.route("/api/test", methods=["GET"])
-def test_restaurants():
-    try:
-        # Get just one document to verify structure
-        sample_doc = collection.find_one()
-        if sample_doc:
-            return jsonify({
-                "sample_document": json.loads(json_util.dumps(sample_doc)),
-                "message": "Found a document"
-            })
-        else:
-            return jsonify({
-                "message": "No documents found in collection",
-                "collection_name": "Yelp",
-                "database_name": db.name
-            })
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5001)

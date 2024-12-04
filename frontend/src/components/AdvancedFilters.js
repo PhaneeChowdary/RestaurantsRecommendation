@@ -1,81 +1,180 @@
 import React, { useState, useEffect } from 'react';
 import { Filter, ChevronDown } from 'lucide-react';
-import { fetchCategories } from '../utils/api';
 
-const AdvancedFilters = ({ onFilterChange }) => {
-  const [categories, setCategories] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [sortBy, setSortBy] = useState('stars');
+const AdvancedFilters = ({ onFilterChange, currentFilters = {} }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [filterOptions, setFilterOptions] = useState(null);
+
+  // Define all filter options
+  const wifiOptions = [
+    { value: "free", label: "Free WiFi" },
+    { value: "paid", label: "Paid WiFi" },
+    { value: "no", label: "No WiFi" }
+  ];
+
+  const alcoholOptions = [
+    { value: "none", label: "No Alcohol" },
+    { value: "beer_and_wine", label: "Beer and Wine" },
+    { value: "full_bar", label: "Full Bar" }
+  ];
 
   useEffect(() => {
-    loadCategories();
+    fetchFilterOptions();
   }, []);
 
-  const loadCategories = async () => {
+  const fetchFilterOptions = async () => {
     try {
-      const data = await fetchCategories();
-      setCategories(data);
+      const response = await fetch('http://localhost:5001/api/filters');
+      const data = await response.json();
+      console.log('Fetched filter options:', data);  // Debug log
+      setFilterOptions(data);
     } catch (error) {
-      console.error('Failed to load categories:', error);
+      console.error('Failed to fetch filter options:', error);
     }
   };
 
   const handleFilterChange = (type, value) => {
-    if (type === 'category') {
-      setSelectedCategory(value);
-    } else if (type === 'sort') {
-      setSortBy(value);
-    }
-    
-    onFilterChange({
-      category: type === 'category' ? value : selectedCategory,
-      sort: type === 'sort' ? value : sortBy
-    });
+    console.log(`Changing filter ${type} to:`, value);  // Debug log
+    const newFilters = {
+      ...currentFilters,
+      [type]: value
+    };
+    console.log('New filters being sent:', newFilters);  // Debug log
+    onFilterChange(newFilters);
   };
+
+  const handleParkingChange = (type) => {
+    const currentParking = currentFilters.parking || {};
+    const newParking = {
+      ...currentParking,
+      [type]: !currentParking[type]
+    };
+    console.log('New parking configuration:', newParking);  // Debug log
+    handleFilterChange('parking', newParking);
+  };
+
+  // Count active filters
+  const getActiveFilterCount = () => {
+    let count = 0;
+    Object.entries(currentFilters).forEach(([key, value]) => {
+      if (value && value !== '' && key !== 'city' && key !== 'price_range_min') {
+        if (key === 'parking' && typeof value === 'object') {
+          count += Object.values(value).filter(Boolean).length;
+        } else {
+          count += 1;
+        }
+      }
+    });
+    return count;
+  };
+
+  if (!filterOptions) return null;
 
   return (
     <div className="relative mb-4">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-4 py-2 bg-white border rounded-lg shadow-sm"
-      >
-        <Filter size={20} />
-        Advanced Filters
-        <ChevronDown size={16} className={`transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex items-center gap-2 px-4 py-2 bg-white border rounded-lg shadow-sm hover:bg-gray-50"
+        >
+          <Filter size={20} />
+          Advanced Filters
+          <ChevronDown 
+            size={16} 
+            className={`transform transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          />
+        </button>
+
+        {getActiveFilterCount() > 0 && (
+          <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+            {getActiveFilterCount()} active
+          </span>
+        )}
+      </div>
 
       {isOpen && (
-        <div className="absolute z-10 mt-2 w-64 bg-white border rounded-lg shadow-lg p-4">
+        <div className="absolute z-10 mt-2 w-96 bg-white border rounded-lg shadow-lg p-4">
+          {/* WiFi */}
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Category</label>
+            <label className="block text-sm font-medium mb-1">WiFi</label>
             <select
-              value={selectedCategory}
-              onChange={(e) => handleFilterChange('category', e.target.value)}
+              value={currentFilters.wifi || ''}
+              onChange={(e) => {
+                console.log('Selected WiFi value:', e.target.value);
+                handleFilterChange('wifi', e.target.value);
+              }}
               className="w-full px-3 py-2 border rounded"
             >
-              <option value="">All Categories</option>
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
+              <option value="">Any</option>
+              {wifiOptions.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>
           </div>
 
+          {/* Alcohol */}
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Sort By</label>
+            <label className="block text-sm font-medium mb-1">Alcohol</label>
             <select
-              value={sortBy}
-              onChange={(e) => handleFilterChange('sort', e.target.value)}
+              value={currentFilters.alcohol || ''}
+              onChange={(e) => handleFilterChange('alcohol', e.target.value)}
               className="w-full px-3 py-2 border rounded"
             >
-              <option value="stars">Rating (High to Low)</option>
-              <option value="-stars">Rating (Low to High)</option>
-              <option value="review_count">Most Reviewed</option>
-              <option value="name">Name (A-Z)</option>
-              <option value="-name">Name (Z-A)</option>
+              <option value="">Any</option>
+              {alcoholOptions.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
+          </div>
+
+          {/* Delivery */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">Delivery</label>
+            <select
+              value={currentFilters.delivery || ''}
+              onChange={(e) => handleFilterChange('delivery', e.target.value)}
+              className="w-full px-3 py-2 border rounded"
+            >
+              <option value="">Any</option>
+              <option value="true">Available</option>
+              <option value="false">Not Available</option>
+            </select>
+          </div>
+
+          {/* Pets Allowed */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">Pets Allowed</label>
+            <select
+              value={currentFilters.pets_allowed || ''}
+              onChange={(e) => handleFilterChange('pets_allowed', e.target.value)}
+              className="w-full px-3 py-2 border rounded"
+            >
+              <option value="">Any</option>
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+
+          {/* Parking Options */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">Parking Options</label>
+            <div className="space-y-2">
+              {Object.entries(filterOptions.parking || {}).map(([type, _]) => (
+                <label key={type} className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={currentFilters.parking?.[type] || false}
+                    onChange={() => handleParkingChange(type)}
+                    className="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm">{type.charAt(0).toUpperCase() + type.slice(1)}</span>
+                </label>
+              ))}
+            </div>
           </div>
         </div>
       )}
