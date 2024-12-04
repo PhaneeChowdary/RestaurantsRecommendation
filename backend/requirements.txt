@@ -1,6 +1,11 @@
-flask==2.0.1
-flask-cors==3.0.10
+click==8.1.7
+Flask==2.0.1
+Flask-Cors==3.0.10
+ijson==3.1.4
+itsdangerous==2.2.0
+Jinja2==3.1.4
+MarkupSafe==3.0.2
 pymongo==4.1.1
 python-dotenv==0.19.0
-ijson==3.1.4
-bson==0.5.10
+six==1.16.0
+Werkzeug==2.0.1
