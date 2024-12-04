@@ -5,9 +5,22 @@ const API_BASE_URL = 'http://localhost:5001';
 export const fetchRestaurants = async (params = {}) => {
   const queryParams = new URLSearchParams();
   
+  // Basic filters
+  if (params.name) queryParams.append('name', params.name);
   if (params.city) queryParams.append('city', params.city);
   if (params.price_range_min) queryParams.append('price_range_min', params.price_range_min);
   if (params.categories) queryParams.append('categories', params.categories);
+  
+  // Advanced filters
+  if (params.wifi) queryParams.append('wifi', params.wifi);
+  if (params.alcohol) queryParams.append('alcohol', params.alcohol);
+  if (params.delivery) queryParams.append('delivery', params.delivery);
+  if (params.pets_allowed) queryParams.append('pets_allowed', params.pets_allowed);
+  if (params.parking) queryParams.append('parking', JSON.stringify(params.parking));
+  if (params.smoking) queryParams.append('smoking', params.smoking);
+  if (params.minStars) queryParams.append('minStars', params.minStars);
+  
+  // Pagination and sorting
   if (params.page) queryParams.append('page', params.page);
   if (params.per_page) queryParams.append('per_page', params.per_page);
   if (params.sort) queryParams.append('sort', params.sort);

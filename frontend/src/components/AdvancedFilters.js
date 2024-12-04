@@ -5,6 +5,14 @@ const AdvancedFilters = ({ onFilterChange, currentFilters = {} }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [filterOptions, setFilterOptions] = useState(null);
 
+  // Add star rating options
+  const starOptions = [
+    { value: "5", label: "5 Stars" },
+    { value: "4", label: "4+ Stars" },
+    { value: "3", label: "3+ Stars" },
+    { value: "2", label: "2+ Stars" }
+  ];
+
   // Define all filter options
   const wifiOptions = [
     { value: "free", label: "Free WiFi" },
@@ -114,6 +122,37 @@ const AdvancedFilters = ({ onFilterChange, currentFilters = {} }) => {
             </select>
           </div>
 
+          {/* Delivery */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">Delivery</label>
+            <select
+              value={currentFilters.delivery || ''}
+              onChange={(e) => handleFilterChange('delivery', e.target.value)}
+              className="w-full px-3 py-2 border rounded"
+            >
+              <option value="">Any</option>
+              <option value="true">Available</option>
+              <option value="false">Not Available</option>
+            </select>
+          </div>
+
+          {/* Star Rating Filter */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">Star Rating</label>
+            <select
+              value={currentFilters.minStars || ''}
+              onChange={(e) => handleFilterChange('minStars', e.target.value)}
+              className="w-full px-3 py-2 border rounded"
+            >
+              <option value="">Any Rating</option>
+              {starOptions.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          
           {/* Alcohol */}
           <div className="mb-4">
             <label className="block text-sm font-medium mb-1">Alcohol</label>
@@ -131,20 +170,6 @@ const AdvancedFilters = ({ onFilterChange, currentFilters = {} }) => {
             </select>
           </div>
 
-          {/* Delivery */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-1">Delivery</label>
-            <select
-              value={currentFilters.delivery || ''}
-              onChange={(e) => handleFilterChange('delivery', e.target.value)}
-              className="w-full px-3 py-2 border rounded"
-            >
-              <option value="">Any</option>
-              <option value="true">Available</option>
-              <option value="false">Not Available</option>
-            </select>
-          </div>
-
           {/* Pets Allowed */}
           <div className="mb-4">
             <label className="block text-sm font-medium mb-1">Pets Allowed</label>
@@ -158,6 +183,23 @@ const AdvancedFilters = ({ onFilterChange, currentFilters = {} }) => {
               <option value="false">No</option>
             </select>
           </div>
+
+          {/* Smoking */}
+          <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Smoking</label>
+              <select
+                value={currentFilters.smoking || ''}
+                onChange={(e) => handleFilterChange('smoking', e.target.value)}
+                className="w-full px-3 py-2 border rounded"
+              >
+                <option value="">Any</option>
+                {filterOptions.smoking?.map(option => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
 
           {/* Parking Options */}
           <div className="mb-4">

@@ -37,6 +37,10 @@ except Exception as e:
 def get_restaurants():
     try:
         # Get all filter parameters
+        name = request.args.get("name")  # Add this line for name search
+        # Debug prints
+        print("Received name parameter:", name)
+
         city = request.args.get("city")
         price_range_min = request.args.get("price_range_min")
         alcohol = request.args.get("alcohol")
@@ -44,6 +48,7 @@ def get_restaurants():
         wifi = request.args.get("wifi")
         dogs_allowed = request.args.get("pets_allowed")
         parking = request.args.get("parking")
+        min_stars = request.args.get("minStars")
 
         # Get pagination parameters
         page = int(request.args.get("page", 1))
@@ -58,6 +63,15 @@ def get_restaurants():
 
         # Build query
         query = {}
+
+        # Name search (case-insensitive partial match)
+        if name and name.strip():
+            query["name"] = {
+                "$regex": f".*{name.strip()}.*",  # Changed this line to include .* on both sides
+                "$options": "i"
+            }
+            # Debug print
+            print("Final name query:", query)
 
         # City filter (case-insensitive)
         if city and city != "don't include":
@@ -74,6 +88,10 @@ def get_restaurants():
         # Alcohol filter (case-insensitive)
         if alcohol and alcohol != "don't include":
             query["attributes.Alcohol"] = {"$regex": f"^{alcohol}$", "$options": "i"}
+
+        # Star rating filter
+        if min_stars:
+            query["stars"] = {"$gte": float(min_stars)}
 
         # Delivery filter (boolean)
         if delivery == "true":
@@ -120,6 +138,11 @@ def get_restaurants():
                         }
             except json.JSONDecodeError as e:
                 print(f"Error parsing parking JSON: {parking}, Error: {str(e)}")
+
+        # Smoking filter (case-insensitive)
+        smoking = request.args.get("smoking")
+        if smoking and smoking != "don't include":
+            query["attributes.Smoking"] = {"$regex": f"^{smoking}$", "$options": "i"}
 
         # Debug print final query
         print("Final MongoDB Query:", json.dumps(query, indent=2))
