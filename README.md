@@ -1,6 +1,6 @@
 # Restaurant Recommendation System
 
-A full-stack web application for restaurant recommendations with filtering and search capabilities.
+A full-stack web application for restaurant recommendations with filtering and search capabilities. The dataset should be in _.json_ format.
 
 ## Prerequisites
 - Python 3.10 or higher
